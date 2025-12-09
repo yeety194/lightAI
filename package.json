@@ -1,0 +1,17 @@
+{
+  "name": "lightai",
+  "version": "0.1.0",
+  "description": "Small local AI chatbot with optional OpenAI proxy",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js",
+    "cli": "node main.js --cli"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "openai": "^4.7.0"
+  }
+}
