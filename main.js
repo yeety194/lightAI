@@ -1,57 +1,11 @@
 #!/usr/bin/env node
-const express = require('express');
 const readline = require('readline');
+const createEngine = require('./local_engine');
 
-let openaiClient = null;
-if (process.env.OPENAI_API_KEY) {
-	try {
-		const { Configuration, OpenAIApi } = require('openai');
-		const cfg = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-		openaiClient = new OpenAIApi(cfg);
-		console.log('OpenAI client initialized (will be used if enabled).');
-	} catch (e) {
-		// If the `openai` SDK isn't available we provide a lightweight fetch fallback
-		console.warn('OpenAI SDK not available, will try HTTP fetch fallback to OpenAI API.');
-		openaiClient = { fetchFallback: true, apiKey: process.env.OPENAI_API_KEY };
-	}
-}
+const engine = createEngine({ persona: 'concise, helpful, friendly assistant' });
 
-async function callOpenAI(message) {
-	if (!openaiClient) throw new Error('OpenAI client not initialized');
-	// Preferred: use SDK if present
-	if (typeof openaiClient.createChatCompletion === 'function') {
-		const resp = await openaiClient.createChatCompletion({
-			model: 'gpt-3.5-turbo',
-			messages: [{ role: 'user', content: message }],
-			max_tokens: 500,
-			temperature: 0.7,
-		});
-		return resp.data.choices[0].message.content.trim();
-	}
-
-	// Fallback: direct HTTP call to OpenAI REST API using fetch
-	if (openaiClient.fetchFallback) {
-		const fetchFn = globalThis.fetch || (await import('node-fetch')).default;
-		const res = await fetchFn('https://api.openai.com/v1/chat/completions', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${openaiClient.apiKey}`,
-			},
-			body: JSON.stringify({
-				model: 'gpt-3.5-turbo',
-				messages: [{ role: 'user', content: message }],
-				max_tokens: 500,
-				temperature: 0.7,
-			}),
-		});
-		const data = await res.json();
-		if (!res.ok) throw new Error(data.error?.message || JSON.stringify(data));
-		return data.choices[0].message.content.trim();
-	}
-
-	throw new Error('OpenAI client not available');
-}
+// This project now uses a self-contained local AI engine only.
+// No external AI providers are contacted; everything runs locally.
 
 function localAI(message) {
 	const m = String(message || '').trim().toLowerCase();
@@ -60,24 +14,24 @@ function localAI(message) {
 	if (m.includes('time')) return `Local server time: ${new Date().toLocaleString()}`;
 	if (m.includes('help')) return 'Try asking a question, say "time", or say "tell me a joke".';
 	if (m.includes('joke')) return 'Why did the programmer quit his job? Because he didn’t get arrays (a raise).';
-	return `You said: "${message}". I can echo, answer simple questions, or route to OpenAI if configured.`;
+	// Simple fallback: echo and invite clarification.
+	return `You said: "${message}". I can echo, answer simple questions, or try to clarify.`;
 }
 
 async function getReply(message, options = {}) {
-	const envEnabled = ['1', 'true', 'yes'].includes(String(process.env.USE_OPENAI || '').toLowerCase());
-	const useOpenAI = Boolean(options.useOpenAI) || (envEnabled && openaiClient);
-	if (useOpenAI) {
-		try {
-			return await callOpenAI(message);
-		} catch (e) {
-			console.warn('OpenAI call failed, falling back to local AI:', e.message || e);
-			return localAI(message);
-		}
-	}
-	return localAI(message);
+	const sessionId = options.sessionId || (options.session || 'default');
+	return engine.reply(message, sessionId);
 }
 
 function startServer(port = 3000) {
+	let express;
+	try {
+		express = require('express');
+	} catch (e) {
+		console.warn('`express` is not installed. Falling back to CLI REPL. To enable the HTTP server run `npm install`.');
+		return startREPL();
+	}
+
 	const app = express();
 	app.use(express.json());
 
@@ -85,7 +39,6 @@ function startServer(port = 3000) {
 		res.send({
 			name: 'LightAI',
 			version: '0.1.0',
-			openai_available: !!openaiClient,
 			instructions: 'POST /chat { "message": "..." } or run `node main.js --cli` for REPL',
 		});
 	});
@@ -98,8 +51,8 @@ function startServer(port = 3000) {
 			const headerFlag = String(req.get('x-use-openai') || '').toLowerCase();
 			const reqFlag = req.body.use_openai || req.body.useOpenAI || false;
 			const useOpenAI = reqFlag || headerFlag === '1' || headerFlag === 'true';
-			const reply = await getReply(message, { useOpenAI });
-			res.json({ reply, source: useOpenAI ? 'openai' : 'local' });
+			const reply = await getReply(message);
+			res.json({ reply, source: 'local' });
 		} catch (e) {
 			res.status(500).json({ error: e.message || String(e) });
 		}

@@ -1,11 +1,11 @@
 # LightAI
 
-Small, local AI chatbot with an optional OpenAI proxy.
+Small, self-contained local AI chatbot.
 
 Features
 - HTTP server: POST `/chat` with JSON `{ "message": "..." }` returns `{ reply, source }`.
 - CLI REPL: `node main.js --cli` for interactive chat.
-- Optional OpenAI integration: set `OPENAI_API_KEY` and `USE_OPENAI=1` to route queries to OpenAI.
+No external AI providers are required; this project runs locally with its own simple AI engine.
 
 Quick start
 
@@ -37,16 +37,6 @@ npm run cli
 node main.js --cli
 ```
 
-Enable OpenAI (optional)
-
-1. Set your OpenAI API key and enable routing:
-
-```bash
-export OPENAI_API_KEY="sk-..."
-export USE_OPENAI=1
-npm start
-```
-
 Notes
-- If `openai` SDK isn't installed or `OPENAI_API_KEY` isn't present, the app falls back to a built-in simple rule-based responder.
-- This project is a minimal starting point — tell me how you'd like the AI improved (knowledge base, embeddings, more advanced models).
+- This project is intentionally self-contained and does not call external AI services.
+- It provides a simple rule-based/local-response engine as a starting point. Tell me how you'd like the AI improved (knowledge base, retrieval, richer conversational skills).

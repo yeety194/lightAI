@@ -1,0 +1,22 @@
+[
+  {
+    "id": "purpose",
+    "question": "what is lightai",
+    "answer": "LightAI is a small, self-contained local assistant that runs without contacting external AI services. It answers simple questions and keeps short conversational memory."
+  },
+  {
+    "id": "install",
+    "question": "how do i run",
+    "answer": "Run `node main.js` to start the HTTP server or `node main.js --cli` for the REPL. Install dependencies with `npm install` if needed."
+  },
+  {
+    "id": "privacy",
+    "question": "is my data sent",
+    "answer": "No — by default this application runs entirely locally; it does not send your messages to external AI providers."
+  },
+  {
+    "id": "memory",
+    "question": "can you remember",
+    "answer": "Yes — LightAI can remember short notes per session. Tell it: 'remember: <text>'."
+  }
+]
