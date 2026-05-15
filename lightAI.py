@@ -1,150 +1,119 @@
-import subprocess
-import socket
-import sys
+﻿import os
+from brain import generate_response, parse_tool_call
+from network_tools import (
+    check_wifi_status,
+    check_ethernet_status,
+    connect_to_wifi,
+    disconnect_wifi,
+    enable_adapter,
+    disable_adapter,
+    list_adapters,
+    check_internet,
+)
 
-def run_command(command):
-    """Run a shell command and return output."""
-    try:
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        return result.stdout.strip(), result.stderr.strip()
-    except Exception as e:
-        return "", str(e)
-
-def check_wifi_status():
-    """Check WIFI status."""
-    stdout, stderr = run_command('netsh wlan show interfaces')
-    if stderr:
-        return f"Error: {stderr}"
-    return stdout
-
-def check_ethernet_status():
-    """Check Ethernet status."""
-    stdout, stderr = run_command('ipconfig')
-    if stderr:
-        return f"Error: {stderr}"
-    # Parse for Ethernet
-    lines = stdout.split('\n')
-    ethernet_info = []
-    in_adapter = False
-    for line in lines:
-        if 'Ethernet adapter' in line:
-            in_adapter = True
-            ethernet_info.append(line)
-        elif in_adapter and line.strip() == '':
-            break
-        elif in_adapter:
-            ethernet_info.append(line)
-    return '\n'.join(ethernet_info) if ethernet_info else "No Ethernet adapter found."
-
-def connect_to_wifi(ssid, password=None):
-    """Connect to WIFI network."""
-    if password:
-        cmd = f'netsh wlan connect name="{ssid}"'
-        # Note: For security, password is usually stored in profile
-        # To add a profile: netsh wlan add profile filename="profile.xml"
-        # But for simplicity, assume profile exists
-    else:
-        cmd = f'netsh wlan connect name="{ssid}"'
-    stdout, stderr = run_command(cmd)
-    if stderr:
-        return f"Error: {stderr}"
-    return stdout
-
-def disconnect_wifi():
-    """Disconnect from WIFI."""
-    stdout, stderr = run_command('netsh wlan disconnect')
-    if stderr:
-        return f"Error: {stderr}"
-    return stdout
-
-def enable_adapter(name):
-    """Enable network adapter."""
-    stdout, stderr = run_command(f'netsh interface set interface "{name}" admin=enabled')
-    if stderr:
-        return f"Error: {stderr}"
-    return stdout
-
-def disable_adapter(name):
-    """Disable network adapter."""
-    stdout, stderr = run_command(f'netsh interface set interface "{name}" admin=disabled')
-    if stderr:
-        return f"Error: {stderr}"
-    return stdout
-
-def list_adapters():
-    """List network adapters."""
-    stdout, stderr = run_command('netsh interface show interface')
-    if stderr:
-        return f"Error: {stderr}"
-    return stdout
-
-def check_internet():
-    """Check internet connectivity."""
-    try:
-        socket.create_connection(("8.8.8.8", 53), timeout=5)
-        return "Internet is connected."
-    except OSError:
-        return "No internet connection."
-
-def parse_command(user_input):
-    """Parse user input and execute command."""
-    input_lower = user_input.lower()
-    if 'check wifi' in input_lower or 'wifi status' in input_lower:
-        return check_wifi_status()
-    elif 'check ethernet' in input_lower or 'ethernet status' in input_lower:
-        return check_ethernet_status()
-    elif 'connect wifi' in input_lower:
-        # Extract SSID
-        parts = user_input.split()
-        if len(parts) > 2:
-            ssid = parts[2]
-            return connect_to_wifi(ssid)
-        else:
-            return "Please specify WIFI name: connect wifi <SSID>"
-    elif 'disconnect wifi' in input_lower:
-        return disconnect_wifi()
-    elif 'enable adapter' in input_lower:
-        parts = user_input.split(' ', 2)
-        if len(parts) > 2:
-            name = parts[2]
-            return enable_adapter(name)
-        else:
-            return "Please specify adapter name: enable adapter <name>"
-    elif 'disable adapter' in input_lower:
-        parts = user_input.split(' ', 2)
-        if len(parts) > 2:
-            name = parts[2]
-            return disable_adapter(name)
-        else:
-            return "Please specify adapter name: disable adapter <name>"
-    elif 'list adapters' in input_lower:
-        return list_adapters()
-    elif 'check internet' in input_lower:
-        return check_internet()
-    elif 'help' in input_lower:
-        return """Available commands:
-- check wifi: Check WIFI status
-- check ethernet: Check Ethernet status
-- connect wifi <SSID>: Connect to WIFI
-- disconnect wifi: Disconnect from WIFI
-- enable adapter <name>: Enable network adapter
-- disable adapter <name>: Disable network adapter
-- list adapters: List all adapters
-- check internet: Check internet connectivity
-- quit: Exit
-"""
-    else:
-        return "Sorry, I didn't understand that. Type 'help' for commands."
 
 def main():
-    print("Hello! I'm LightAI. I can help with network tasks. Type 'help' for commands.")
+    """Main conversation loop for LightAI."""
+    print("\n" + "=" * 60)
+    print("Welcome! I'm LightAI, your intelligent network assistant.")
+    print("I'm running completely locally - no internet required!")
+    print("Type 'quit' or 'exit' to leave.")
+    print("=" * 60 + "\n")
+
+    conversation_history = []
+    system_prompt = """You are LightAI, an intelligent AI assistant specialized in network tasks on Windows.
+You can help users with:
+- Checking WIFI and Ethernet status
+- Connecting/disconnecting from WIFI networks
+- Enabling/disabling network adapters
+- Listing available adapters
+- Checking internet connectivity
+
+Be conversational, helpful, and professional. When a user asks for a network action, offer to perform it.
+If you're going to perform an action, state clearly what you're about to do."""
+
     while True:
-        user_input = input("You: ")
-        if user_input.lower() == 'quit':
-            print("Goodbye!")
+        try:
+            user_input = input("\nYou: ").strip()
+
+            if not user_input:
+                continue
+
+            if user_input.lower() in ['quit', 'exit', 'bye']:
+                print("\nLightAI: Thank you for using LightAI. Goodbye!")
+                break
+
+            conversation_history.append(user_input)
+            history_context = "\n".join(conversation_history[-6:])
+
+            prompt = f"""[INST] System: {system_prompt}
+
+Recent conversation:
+{history_context}
+
+User: {user_input}
+
+LightAI: [/INST]"""
+
+            print("\nLightAI: ", end="", flush=True)
+            response = generate_response(prompt, max_length=400)
+            print(response)
+
+            tool_call = parse_tool_call(response)
+            if tool_call:
+                tool_name, tool_args = tool_call
+                result = ""
+                if tool_name == "check_wifi_status":
+                    result = check_wifi_status()
+                elif tool_name == "check_ethernet_status":
+                    result = check_ethernet_status()
+                elif tool_name == "connect_to_wifi":
+                    ssid = tool_args.get("ssid", "")
+                    if ssid:
+                        print(f"\n[Connecting to {ssid}...]")
+                        result = connect_to_wifi(ssid)
+                    else:
+                        result = "No network name provided."
+                elif tool_name == "disconnect_wifi":
+                    print("\n[Disconnecting from WIFI...]")
+                    result = disconnect_wifi()
+                elif tool_name == "enable_adapter":
+                    name = tool_args.get("name", "")
+                    if name:
+                        print(f"\n[Enabling {name}...]")
+                        result = enable_adapter(name)
+                    else:
+                        result = "No adapter name provided."
+                elif tool_name == "disable_adapter":
+                    name = tool_args.get("name", "")
+                    if name:
+                        print(f"\n[Disabling {name}...]")
+                        result = disable_adapter(name)
+                    else:
+                        result = "No adapter name provided."
+                elif tool_name == "list_adapters":
+                    print("\n[Listing adapters...]")
+                    result = list_adapters()
+                elif tool_name == "check_internet":
+                    print("\n[Checking internet...]")
+                    result = check_internet()
+
+                if result:
+                    followup_prompt = f"""[INST] Based on this result from the network tool:\n\n{result}\n\nBriefly summarize the result for the user in one or two sentences. [/INST]"""
+                    print("\nLightAI: ", end="", flush=True)
+                    followup = generate_response(followup_prompt, max_length=150)
+                    print(followup)
+                    conversation_history.append(f"LightAI executed action with result: {result}")
+
+            conversation_history.append(f"LightAI: {response}")
+
+        except KeyboardInterrupt:
+            print("\n\nLightAI: Session interrupted. Goodbye!")
             break
-        response = parse_command(user_input)
-        print(f"LightAI: {response}")
+        except Exception as e:
+            print(f"\nLightAI: I encountered an error: {str(e)}")
+            print("Please try again or ask for help.")
+
 
 if __name__ == "__main__":
     main()
