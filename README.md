@@ -1,6 +1,6 @@
 # LightAI - Local Network Assistant
 
-LightAI is a local AI assistant for Windows network management. It runs entirely offline using a local LLM and supports conversational interaction with network tools for WIFI, Ethernet, and adapter control.
+LightAI is a local AI assistant for Windows and Linux network management. It runs entirely offline using a local LLM and supports conversational interaction with network tools for WIFI, Ethernet, and adapter control.
 
 ## Features
 
@@ -12,13 +12,23 @@ LightAI is a local AI assistant for Windows network management. It runs entirely
 ## Requirements
 
 - Python 3.10+ recommended
-- Windows OS
+- Windows or Linux OS
 - `torch`
 - `transformers`
+- `nmcli` / NetworkManager on Linux for Wi-Fi management
+- `pip` or `python -m ensurepip` if pip is not already installed
 
 ## Setup
 
-1. Open PowerShell and activate your virtual environment if you have one:
+1. Open a terminal and activate your virtual environment if you have one.
+
+Linux example:
+
+```bash
+source .venv/bin/activate
+```
+
+Windows PowerShell example:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
@@ -27,8 +37,34 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 
 2. Install dependencies from `pyproject.toml`:
 
-```powershell
+```bash
 python -m pip install -e .
+```
+
+### Arch Linux setup
+
+On Arch Linux, make sure `pip` is installed first:
+
+```bash
+sudo pacman -Syu python-pip
+```
+
+Then install dependencies:
+
+```bash
+python -m pip install -e .
+```
+
+If you prefer Arch packages for PyTorch, you can also install:
+
+```bash
+sudo pacman -S python-pytorch
+```
+
+and then install only `transformers` with pip:
+
+```bash
+python -m pip install transformers
 ```
 
 3. If you prefer direct installation instead of editable mode:
@@ -36,6 +72,14 @@ python -m pip install -e .
 ```powershell
 python -m pip install torch transformers
 ```
+
+If `pip` is not available on Arch Linux, install it with:
+
+```bash
+sudo pacman -S python-pip
+```
+
+If you are on a different Linux distribution, use your distro's package manager or install `pip` via Python packaging support.
 
 ## Usage
 

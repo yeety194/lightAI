@@ -1,14 +1,44 @@
+import importlib.util
+import shutil
 import subprocess
 import sys
 import re
 from typing import Optional
 
+REQUIRED_PACKAGES = ["torch", "transformers"]
+
+
+def _pip_available() -> bool:
+    return shutil.which("pip") is not None or importlib.util.find_spec("pip") is not None
+
+
+def _install_dependencies():
+    if not _pip_available():
+        raise SystemExit(
+            "Required dependencies are missing and pip is not available.\n"
+            "On Arch Linux, install pip with: sudo pacman -S python-pip\n"
+            "Then install dependencies with: python -m pip install -e .\n"
+            "Or install the packages directly: python -m pip install torch transformers\n"
+        )
+
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-q", *REQUIRED_PACKAGES],
+            check=True,
+        )
+    except subprocess.CalledProcessError as install_error:
+        raise SystemExit(
+            "Unable to install required dependencies automatically. "
+            "Please install 'torch' and 'transformers' manually with pip."
+        ) from install_error
+
+
 try:
     from transformers import AutoModelForCausalLM, AutoTokenizer
     import torch
 except ImportError:
-    print("Installing required packages for the AI brain...")
-    subprocess.run([sys.executable, "-m", "pip", "install", "torch", "transformers", "-q"], check=True)
+    print("Required packages are missing. Attempting to install them...")
+    _install_dependencies()
     from transformers import AutoModelForCausalLM, AutoTokenizer
     import torch
 
